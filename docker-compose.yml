@@ -1,55 +1,52 @@
 version: '3'
 services:
-  osticket-db:
-    image: mysql:5.7
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MY_SQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE_NAME}
-      MYSQL_USER: ${MYSQL_USER_NAME}
-      MYSQL_PASSWORD: ${MYSQL_USER_PASSWORD}
-    volumes:
-     - osticket-mysql-data:/var/lib/mysql
-    networks:
-     - osticket-internal
-    healthcheck:
-      test: "/usr/bin/mysql --user=root --password=$$MY_SQL_ROOT_PASSWORD --execute \"SHOW DATABASES;\""
-      interval: 2s
-      timeout: 20s
-      retries: 10
-  osticket:
-    image: fdmieng/dockerosticket:v1.18.1
-    environment:
-      MYSQL_HOST: osticket-db
-      MYSQL_DATABASE: ${MYSQL_DATABASE_NAME}
-      MYSQL_USER: ${MYSQL_USER_NAME}
-      MYSQL_PASSWORD: ${MYSQL_USER_PASSWORD}
-    restart: on-failure
-    depends_on:
-      - osticket-db
-        condition: service_healthy
-    healthcheck:
-      test: curl --fail http://localhost || exit 1
-      interval: 60s
-      retries: 5
-      start_period: 20s
-      timeout: 10s
-    networks:
-      - osticket-internal
-      - osticket-external
-  cloudflared:
-    restart: unless-stopped
-    depends_on:
-      - osticket
-    image: cloudflare/cloudflared
-    networks:
-      - osticket-external
-    command: tunnel run
-    networks:
-     - passbolt-frontend
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    osticket-db:
+        image: mysql:5.7
+        environment:
+         - MYSQL_ROOT_PASSWORD=${MY_SQL_ROOT_PASSWORD}
+         - MYSQL_DATABASE=${MYSQL_DATABASE}
+         - MYSQL_USER=${MYSQL_USER}
+         - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        volumes:
+         - osticket-mysql-data:/var/lib/mysql
+        networks:
+         - osticket-internal
+        healthcheck:
+         test: "/usr/bin/mysql --user=root --password=$$MYSQL_ROOT_PASSWORD --execute \"SHOW DATABASES;\""
+         interval: 2s
+         timeout: 20s
+         retries: 10  
+    osticket:
+        image: fdmieng/dockerosticket:v1.18.1
+        env_file:
+         - stack.env
+        restart: on-failure
+        depends_on:
+         osticket-db:
+          condition: service_healthy
+        healthcheck:
+          test: curl --fail http://localhost || exit 1
+          interval: 60s
+          retries: 5
+          start_period: 20s
+          timeout: 10s
+        networks:
+         - osticket-internal
+         - osticket-external   
+    cloudflared:
+        restart: unless-stopped
+        depends_on:
+         - osticket
+        image: cloudflare/cloudflared
+        networks:
+         - osticket-external
+        command: tunnel run
+        environment:
+         - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      
 networks:
-  osticket-internal
-    internal: true
-  osticket-external
-    
+     osticket-internal:
+        internal: true
+     osticket-external:
+volumes:
+  osticket-mysql-data:
